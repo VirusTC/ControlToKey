@@ -107,6 +107,25 @@ class LinuxGamepadEngine:
             self._execute_axis_action(axis_name, 'p', 0.0)
             return
 
+        # Add this matching handler block inside process_axis()
+        if axis_name in [ecodes.ABS_HAT0X, ecodes.ABS_HAT0Y]:
+        is_x = (axis_name == ecodes.ABS_HAT0X)
+        key_base = "pov1x" if is_x else "pov1y"
+    
+        # -1 is Left/Up, 1 is Right/Down, 0 is Neutral
+        old_val = self.hat_states[key_base]
+        if old_val != raw_value:
+        # Fire release for the old direction if it wasn't neutral
+        if old_val != 0:
+            suffix = 'l' if is_x else 'u' if old_val < 0 else 'r' if is_x else 'd'
+            self._execute_discrete_pov(f"pov1{suffix}", is_pressed=False)
+        # Fire press for new direction
+        if raw_value != 0:
+            suffix = 'l' if is_x else 'u' if raw_value < 0 else 'r' if is_x else 'd'
+            self._execute_discrete_pov(f"pov1{suffix}", is_pressed=True)
+        self.hat_states[key_base] = raw_value
+
+        
         direction_suffix = 'n' if raw_value < 0 else 'p'
         max_range = 32768 - threshold
         pressure_ratio = (abs(raw_value) - threshold) / max_range
