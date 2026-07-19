@@ -68,16 +68,39 @@ class LinuxGamepadEngine:
                 pass
 
     def process_button(self, btn_id, is_pressed):
-        mapping = self.active_profile["buttons"].get(btn_id)
+        """Processes chorded macros, configuration layers, and asynchronous haptic feedback."""
+        profile_data = self.parser.loaded_profiles.get(self.active_profile_name, {"buttons": {}, "axes": {}})
+        mapping = profile_data.get("buttons", {}).get(btn_id)
         
         if is_pressed:
-            self.pressed_buttons.add(btn_id)
-            if not mapping or not self.output_driver: return
+            if not mapping: return
             
-            if mapping["type"] == "KEYBOARD":
+            # --- NEW HAPTIC INTEGRATION CHECK ---
+            if "vibrate" in mapping:
+                self._fire_linux_haptic_feedback(
+                    duration_ms=mapping["vibrate"]["duration"],
+                    intensity=mapping["vibrate"]["intensity"]
+                )
+            # -------------------------------------
+            
+            if mapping["type"] == "KEYBOARD" and self.output_driver:
                 for key in mapping["keys"]:
                     self.output_driver.press_key(key)
             elif mapping["type"] == "PROFILE_SHIFT":
+                target = mapping["target"]
+                if target in self.parser.loaded_profiles:
+                    self.active_profile_name = target
+                    self._update_mapping_tree_display()
+        else:
+            # Keep your existing release logic unmodified below...
+            if not mapping: return
+            if mapping["type"] == "KEYBOARD" and self.output_driver:
+                for key in mapping["keys"]:
+                    self.output_driver.release_key(key)
+            elif mapping["type"] == "PROFILE_SHIFT":
+                # Revert logic
+                pass
+
                 target = mapping["target"]
                 if target in self.profiles:
                     self.current_profile_name = target
