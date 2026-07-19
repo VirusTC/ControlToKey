@@ -5,6 +5,25 @@ from ctypes import wintypes
 # Win32 Structural Definitions for Direct Keyboard & Mouse Injection
 MUL = ctypes.sizeof(ctypes.c_ulong)
 
+class XINPUT_VIBRATION(ctypes.Structure):
+    _fields_ = [
+        ("wLeftMotorSpeed", ctypes.c_ushort),  # Range: 0 to 65535
+        ("wRightMotorSpeed", ctypes.c_ushort) # Range: 0 to 65535
+    ]
+
+def set_windows_rumble(controller_index=0, left_motor=0, right_motor=0):
+    """
+    Triggers controller vibration on Windows.
+    Speeds should be normalized floats between 0.0 and 1.0.
+    """
+    xinput = ctypes.windll.xinput1_4
+    vibration = XINPUT_VIBRATION(
+        wLeftMotorSpeed=int(left_motor * 65535),
+        wRightMotorSpeed=int(right_motor * 65535)
+    )
+    # 0 = ERROR_SUCCESS, 1167 = Device not connected
+    return xinput.XInputSetState(controller_index, ctypes.pointer(vibration))
+
 class MOUSEINPUT(ctypes.Structure):
     _fields_ = [("dx", wintypes.LONG),
                 ("dy", wintypes.LONG),
