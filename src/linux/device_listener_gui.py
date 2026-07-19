@@ -7,6 +7,8 @@ import threading
 import time
 import queue
 import configparser
+import evdev
+from evdev import ecodes
 
 # Safe local package resolution
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -55,6 +57,32 @@ class ControlToKeyGUI:
         self.tracker_thread.start()
         
         self.root.after(100, self._process_gui_queue)
+
+        def _hardware_loop_worker(self):
+        """Linux Gamepad Input Device Tracker Hook."""
+        
+        device_path = "/dev/input/by-id/usb-Logitech_Gamepad_F310_-event-joystick"
+        if not os.path.exists(device_path):
+            device_path = "/dev/input/event0"
+            
+        if not os.path.exists(device_path):
+            return
+            
+        try:
+            device = evdev.InputDevice(device_path)
+            device.grab()
+            for event in device.read_loop():
+                if not self.tracking_running: break
+                if event.type == ecodes.EV_KEY and event.code in self.btn_map:
+                    btn_id = self.btn_map[event.code]
+                    if event.value == 1:
+                        self.gui_queue.put(("PRESS", btn_id))
+                        self.process_button(btn_id, True)
+                    elif event.value == 0:
+                        self.gui_queue.put(("RELEASE", btn_id))
+                        self.process_button(btn_id, False)
+        except Exception:
+            pass
 
     def _build_ui_layout(self):
         # Configuration Menu Management Hooks
