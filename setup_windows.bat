@@ -6,8 +6,8 @@ echo ====================================================
 
 pip install pyinstaller
 
-:: Compile the codebase into a single executable file, hiding the background command console windows
-pyinstaller --noconsole --onefile --name="ControlToKey" --add-data "src/windows;src/windows" src/windows/main.py
+:: Update your pyinstaller execution target line in /setup_windows.bat to handle the new files
+pyinstaller --noconsole --onefile --name="ControlToKey" --add-data "src/windows/profiles;profiles" src/windows/main.py
 
 echo ====================================================
 echo  Compilation complete! Target is located inside: \dist\ControlToKey.exe
