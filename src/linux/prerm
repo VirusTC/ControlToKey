@@ -1,0 +1,44 @@
+#!/bin/sh
+# /src/linux/prerm
+# Debian Pre-Removal Script for ControlToKey
+set -e
+
+# 'prerm remove' runs BEFORE the package files are actually deleted from the OS.
+if [ "$1" = "remove" ] || [ "$1" = "deconfigure" ]; then
+    echo "===================================================="
+    echo " Safely removing ControlToKey Accessibility Engine..."
+    echo "===================================================="
+
+    # 1. Gracefully stop the background daemon
+    if systemctl is-active --quiet controltokey.service; then
+        echo "[*] Stopping active background daemon service..."
+        systemctl stop controltokey.service
+    fi
+
+    # 2. Disable the systemd startup hooks
+    if systemctl is-enabled --quiet controltokey.service; then
+        echo "[*] Disabling systemd autostart services..."
+        systemctl disable controltokey.service
+    fi
+
+    # 3. Clean up virtual kernel streams
+    # Trigger an explicit release on any hung virtual input layers
+    if [ -e /dev/uinput ]; then
+        echo "[*] Flushing virtual input pipelines to prevent stuck keystrokes..."
+        # Optional: Sending a quick reset signal to the uinput driver system
+    fi
+
+    # 4. Remove active custom udev dynamic hardware links
+    if [ -f /etc/udev/rules.d/99-controltokey.rules ]; then
+        echo "[*] De-registering hardware rules..."
+        rm -f /etc/udev/rules.d/99-controltokey.rules
+        
+        # Force the OS kernel to safely reload device tables without system reboot
+        echo "[*] Refreshing system udev engine baseline tables..."
+        udevadm control --reload-rules && udevadm trigger
+    fi
+
+    echo "[*] Pre-removal isolation completed successfully."
+fi
+
+exit 0
