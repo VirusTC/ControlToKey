@@ -26,6 +26,9 @@ class LinuxGamepadEngine:
             ecodes.ABS_RZ: "axis4",  # Right Stick Y
         }
         
+        # Track Hat state changes to simulate discrete button down/up cycles
+        self.hat_states = {"pov1x": 0, "pov1y": 0}
+
         # Button ID layout map tracking conversions
         self.btn_map = {
             ecodes.BTN_SOUTH: 1,  # A Button
