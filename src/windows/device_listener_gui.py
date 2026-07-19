@@ -341,9 +341,37 @@ else:\
 self.gui_queue.put(("UPDATE_STATUS", active_app))\
 time.sleep(1.0)
 
-def _hardware_loop_worker(self):\
-"""Windows-specific background monitoring loop utilizing the XInput engine APIs."""\
-# This replaces the Linux evdev code. It tracks raw button masks and maps rows into UI queue pipelines.\
+    def _hardware_loop_worker(self):
+        """Windows XInput Gamepad Event Engine Thread."""
+        xinput = ctypes.windll.xinput1_4
+        state = XINPUT_STATE()
+        last_packet = -1
+        
+        while self.tracking_running:
+            result = xinput.XInputGetState(0, ctypes.pointer(state))
+            if result == 0: # ERROR_SUCCESS
+                if state.dwPacketNumber != last_packet:
+                    last_packet = state.dwPacketNumber
+                    self._parse_win32_gamepad_state(state.Gamepad)
+            elif result == 1167: # ERROR_DEVICE_NOT_CONNECTED
+                time.sleep(1.0)
+            time.sleep(0.01)
+
+    def _parse_win32_gamepad_state(self, gamepad):
+        # Maps face buttons down to UI Queue alerts
+        for mask, btn_id in self.btn_mask_map.items():
+            is_down = bool(gamepad.wButtons & mask)
+            was_down = btn_id in self.pressed_buttons
+            
+            if is_down and not was_down:
+                self.pressed_buttons.add(btn_id)
+                self.gui_queue.put(("PRESS", btn_id))
+                # Invoke actual virtual input hardware injection pipeline
+                if self.output_driver: self._execute_button_action(btn_id, True)
+            elif not is_down and was_down:
+                self.pressed_buttons.discard(btn_id)
+                self.gui_queue.put(("RELEASE", btn_id))
+                if self.output_driver: self._execute_button_action(btn_id, False)
 pass
 
 def _process_gui_queue(self):\
