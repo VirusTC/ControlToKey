@@ -23,6 +23,8 @@ sudo usermod -aG input $USER
 # 4. Install standard framework dependencies
 echo "[*] Finalizing system library dependencies..."
 pip install python-evdev python-uinput
+sudo apt-get install -y xdotool
+pip install python-evdev python-uinput
 
 echo ""
 echo "===================================================="
