@@ -1,0 +1,4 @@
+# ControlToKey Application Routing Registry
+# Format: executable_process_name.exe=ProfileName
+pacs_viewer.exe=Radiology_Default
+charting_suite.exe=Data_Entry_Layer
