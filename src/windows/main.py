@@ -1,14 +1,20 @@
 # /src/windows/main.py
 import os
 import sys
+import tkinter as tk
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from device_listener_gui import ControlToKeyGUIWindows
 
 from config_loader import JoyToKeyConfigParser
 from device_listener import WindowsGamepadEngine
 from virtual_output import WindowsVirtualOutputDriver
 
 def main():
+    print("[*] ControlToKey Windows GUI Module Active. Building Win32 window context...")
+    root = tk.Tk()
+    app = ControlToKeyGUIWindows(root)
+    root.mainloop()
     print("====================================================")
     print(" ControlToKey - Windows Subsystem Engine Launching  ")
     print("====================================================")
