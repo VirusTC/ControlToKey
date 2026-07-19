@@ -1,49 +1,56 @@
-# main.py
-import sys
+# /src/linux/main.py
 import os
-from src.core.config_parser import JoyToKeyConfigParser
-from src.core.state_machine import ActionDispatcher
+import sys
+
+# Ensure local imports work cleanly if run from the repository root
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from config_loader import JoyToKeyConfigParser
+from device_listener import LinuxGamepadEngine
+from virtual_output import LinuxVirtualOutputDriver
 
 def main():
-    print("Initializing ControlToKey Core Subsystems...")
+    print("====================================================")
+    print(" ControlToKey - Linux Subsystem Engine Launching   ")
+    print("====================================================")
     
-    # Establish local profiles path targeting the medical profile structures
-    profiles_dir = os.path.join(os.path.dirname(__file__), "profiles")
-    
+    # Target profiles directory relative to this folder
+    # Expected structure: /src/linux/profiles/*.cfg
+    profiles_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "profiles")
+    if not os.path.exists(profiles_dir):
+        os.makedirs(profiles_dir)
+        print(f"[*] Created empty profiles folder at: {profiles_dir}")
+        print("[!] Please place your JoyToKey hospital profiles (.cfg) inside it.")
+
+    # 1. Parse JoyToKey .cfg configs
     parser = JoyToKeyConfigParser(profiles_dir)
     parser.load_all_profiles()
     
     if not parser.loaded_profiles:
-        print(f"Warning: No valid .cfg profiles resolved in folder: {profiles_dir}")
-        # Inject an empty runtime container fallback structure
+        print("[!] Warning: No configurations detected. Injecting a default profile slot.")
         parser.loaded_profiles["Main"] = {"threshold": 4000, "buttons": {}, "axes": {}}
 
-    # Fall back safely to alphabetical primary if a 'Main.cfg' file wasn't directly found
-    default_node = "Main" if "Main" in parser.loaded_profiles else list(parser.loaded_profiles.keys())[0]
-    
-    dispatcher = ActionDispatcher(parser.loaded_profiles, default_profile=default_node)
+    # Determine default startup baseline mapping profile 
+    default_profile = "Main" if "Main" in parser.loaded_profiles else list(parser.loaded_profiles.keys())[0]
+    print(f"[*] Loaded profiles: {list(parser.loaded_profiles.keys())}")
+    print(f"[*] Core active profile layer: [{default_profile}]")
 
-    # Resolve platform framework engine execution hooks dynamically
-    if sys.platform.startswith('linux'):
-        print("Linux OS confirmed. Running uinput platform device execution wrappers...")
-        from src.linux.virtual_output import LinuxVirtualOutputDriver
-        from src.linux.device_listener import LinuxGamepadEngine
-        
+    # 2. Spin up Hardware Listeners & Output Pipelines
+    try:
         output_driver = LinuxVirtualOutputDriver()
-        dispatcher.bind_output_driver(output_driver)
+        engine = LinuxGamepadEngine(default_profile_name=default_profile, parsed_profiles=parser.loaded_profiles)
+        engine.bind_output_driver(output_driver)
         
-        # Note: LinuxGamepadEngine uses dispatcher under the hood to process direct loop streams
-        # Ensure the device path target rules match your udev assignments safely!
-        try:
-            from src.linux.device_listener import LinuxGamepadEngine
-            engine = LinuxGamepadEngine()
-            engine.dispatcher = dispatcher
-            engine.start_loop()
-        except Exception as err:
-            print(f"Kernel initialization exception raised: {err}")
-            print("Ensure execution context has read-write access permissions to uinput and event interfaces.")
-    else:
-        print(f"Architecture platform hook target '{sys.platform}' is currently unmapped.")
+        print("[*] Core components bound. Starting input tracking loop...")
+        engine.start_loop()
+        
+    except PermissionError:
+        print("\n[X] Error: Insufficient permissions to access uinput or joystick events!")
+        print("[*] Solution: Ensure your user belongs to the 'input' group or run with sudo.")
+    except FileNotFoundError as fnf:
+        print(f"\n[X] Hardware Error: {fnf}")
+    except KeyboardInterrupt:
+        print("\n[*] ControlToKey safely shutting down.")
 
 if __name__ == "__main__":
     main()
